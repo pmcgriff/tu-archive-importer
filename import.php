@@ -3,6 +3,8 @@
 
 require 'vendor/autoload.php';
 
+/* Config */
+
 DB::$user = 'root';
 DB::$password = 'root';
 DB::$dbName = 'thinkup';
@@ -14,27 +16,43 @@ $table_name = 'tu_posts';
 $userid = '';
 
 $directory = "tweets/";
-$files = glob($directory . "*.js");
 
-echo "Pulling existing tweets...\n";
+$timezone = 'America/New_York';
 
-$existingdb = DB::query("SELECT post_id FROM " . $table_name . " WHERE author_user_id=%i AND network='twitter'", $userid);
-foreach ($existingdb as $tweet) {
-	$existing[$tweet['post_id']] = true;
-}
-unset($existingdb);
+/* Script Start */
 
-echo "Running...";
+date_default_timezone_set($timezone);
 
-foreach($files as $file)
+$tweet_files = glob($directory."data/js/tweets/*.js");
+
+foreach($tweet_files as $file)
 {
+	$parsedFile = parseFile($file);
+	$parsedTweets = parseTweets($parsedFile);
 
-	$str_data = file_get_contents($file);
-	$str_data = substr($str_data, 32);
+	foreach($parsedTweets as $tweet){
+		insertTweet($tweet, $table_name);
+	}
+
+}
+
+function parseFile($file){
+
+	$file_contents = file_get_contents($file);
+	$str_data = substr($file_contents, 32);
 	
 	$data = json_decode($str_data);
-	
-	foreach ($data as $tweet) {
+
+	return $data;
+
+}
+
+function parseTweets($tweets){
+
+	$parsed_tweets = array();
+
+	foreach($tweets as $tweet){
+
 		$parsed_tweet = array(
 			'post_id'             	=> $tweet->id_str,
 			'author_username'     	=> $tweet->user->screen_name,
@@ -61,14 +79,27 @@ foreach($files as $file)
 			$parsed_tweet['in_reply_to_user_id'] = (string)$tweet->in_reply_to_user_id;
 		}
 
-		// Check to see if a tweet with the specific id already exists
-		if (!isset($existing[$tweet->id_str])) {
-			DB::insert($table_name, $parsed_tweet);
-		}
+		array_push($parsed_tweets, $parsed_tweet);
+	}
+
+	return $parsed_tweets;
+
+}
+
+function insertTweet($tweet, $table_name){
+	if (!isset($existing[$tweet->id_str])) {
+		DB::insert($table_name, $parsed_tweet);
 	}
 }
 
-echo "Finished!";
+function getExistingTweets($table_name){
+	$existing = array();
 
-?>
+	$existingdb = DB::query("SELECT post_id FROM " . $table_name . " WHERE author_user_id=%i AND network='twitter'", $userid);
+	foreach ($existingdb as $tweet) {
+		$existing[$tweet['post_id']] = true;
+	}
+	unset($existingdb);
 
+	return $existing;
+}
