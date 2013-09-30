@@ -1,8 +1,8 @@
 #!/usr/bin/env php
 <?php
 
-// Instead of messing around with SQL statements myself
-require_once 'meekrodb.2.1.class.php';
+require 'vendor/autoload.php';
+
 DB::$user = 'root';
 DB::$password = 'root';
 DB::$dbName = 'thinkup';
